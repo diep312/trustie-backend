@@ -19,7 +19,7 @@ class User(Base):
     phones = relationship("PhoneNumber", back_populates="owner", cascade="all, delete-orphan")
     sms_logs = relationship("SMSLog", back_populates="user", cascade="all, delete-orphan")
     screenshots = relationship("Screenshot", back_populates="user", cascade="all, delete-orphan")
-    alerts = relationship("Alert", back_populates="user", cascade="all, delete-orphan")
+    alerts = relationship("Alert", back_populates="user", cascade="all, delete-orphan", foreign_keys="Alert.user_id")    
     feedbacks = relationship("Feedback", back_populates="user", cascade="all, delete-orphan")
     reports = relationship("Report", back_populates="user", cascade="all, delete-orphan")
     family_members = relationship("FamilyMember", foreign_keys="FamilyMember.user_id", back_populates="user", cascade="all, delete-orphan")

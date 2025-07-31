@@ -22,6 +22,7 @@ class Alert(Base):
 
     # Relationships
     user = relationship("User", foreign_keys=[user_id], back_populates="alerts")
+    acknowledged_user = relationship("User", foreign_keys=[acknowledged_by])
     family_member = relationship("FamilyMember", back_populates="alerts")
     detection_result = relationship("ScamDetectionResult", back_populates="alerts")
     acknowledged_user = relationship("User", foreign_keys=[acknowledged_by])

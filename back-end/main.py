@@ -4,25 +4,17 @@ import uvicorn
 import shutil
 import os
 from typing import Any
+from .routes import phone, alerts, screenshot, user, family
 
-app = FastAPI()
+app = FastAPI(title="Backend API của Trustie", version="1.0.1")
 
-# Temporary upload folder
-temp_upload_dir = "temp_uploads"
-os.makedirs(temp_upload_dir, exist_ok=True)
+# Include routers
+app.include_router(phone.router)
+app.include_router(alerts.router)
+app.include_router(screenshot.router)
+app.include_router(user.router)
+app.include_router(family.router)
 
-@app.post("/upload-image/")
-async def upload_image(file: UploadFile = File(...)):
-    # Save uploaded file
-    file_location = os.path.join(temp_upload_dir, file.filename)
-    with open(file_location, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    # TODO: OCR extraction (e.g., pytesseract)
-    # TODO: Feature extraction (OpenCV, Pandas)
-    # TODO: Store features in Amazon DB
-    # TODO: Call Grok API for scam analysis
-    # TODO: Return analysis result
-    return JSONResponse({"message": "Image uploaded and processing started.", "filename": file.filename})
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
