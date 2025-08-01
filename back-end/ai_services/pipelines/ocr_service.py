@@ -1,7 +1,20 @@
 import pytesseract
 from PIL import Image
 from typing import Optional
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe' 
+import platform
+
+
+def configure_tesseract_path():
+    system = platform.system()
+    
+    if system == "Windows":
+        pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+    elif system == "Linux":
+        pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
+    else:
+        raise EnvironmentError(f"Unsupported OS: {system}")
+
+configure_tesseract_path()
 
 class OCRService:
     @staticmethod

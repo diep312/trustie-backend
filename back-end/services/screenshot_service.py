@@ -12,7 +12,7 @@ from werkzeug.utils import secure_filename
 logger = logging.getLogger(__name__)
 
 class ScreenshotService:
-    def __init__(self, db: Session, upload_dir: str = "/data/screenshot_uploads"):
+    def __init__(self, db: Session, upload_dir: str = "./data/screenshot_uploads"):
         self.db = db
         self.upload_dir = os.path.abspath(upload_dir)
 
