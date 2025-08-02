@@ -1,6 +1,7 @@
 import os
 import requests
 import logging
+import base64
 from typing import Dict, Any, Optional
 from pathlib import Path
 from dotenv import load_dotenv
@@ -27,20 +28,42 @@ class LLMService:
             
         self.base_url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.base_model}:generateContent"
     
-    def analyze_scam_risk(self, text: str, entities: Dict[str, Any]) -> Dict[str, Any]:
+    
+    def analyze_image_scam_risk(self, image_path: str, text: str, entities: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Analyze text for scam or fraud risk using Gemini LLM
+        Analyze image for scam or fraud risk using Gemini LLM with multimodal capabilities
         
         Args:
-            text: The text extracted from screenshot
+            image_path: Path to the image file
+            text: Text extracted from screenshot
             entities: Dictionary containing extracted entities (phones, urls, etc.)
             
         Returns:
             Dictionary containing analysis results
         """
         try:
-            prompt = self._build_scam_analysis_prompt(text, entities)
-            response = self._call_gemini_api(prompt)
+            # Encode image to base64
+            image_data = self._encode_image_to_base64(image_path)
+            
+            # Build prompt for image analysis
+            prompt = self._build_image_analysis_prompt(text, entities)
+            
+            # Prepare multimodal content
+            content = {
+                "contents": [{
+                    "parts": [
+                        {"text": prompt},
+                        {
+                            "inline_data": {
+                                "mime_type": self._get_mime_type(image_path),
+                                "data": image_data
+                            }
+                        }
+                    ]
+                }]
+            }
+            
+            response = self._call_gemini_api_multimodal(content)
             
             if response.get("status_code") == 200:
                 result = response.get("data", {})
@@ -49,15 +72,130 @@ class LLMService:
                     "analysis": analysis,
                     "risk_level": self._extract_risk_level(analysis),
                     "confidence": self._extract_confidence(analysis),
-                    "model_used": self.base_model
+                    "model_used": self.base_model,
+                    "image_analyzed": True
                 }
             else:
                 logger.error(f"Gemini API error: {response.get('error', 'Unknown error')}")
                 return {"error": response.get('error', 'API call failed')}
                 
         except Exception as e:
-            logger.error(f"Error in scam risk analysis: {str(e)}")
+            logger.error(f"Error in image scam risk analysis: {str(e)}")
             return {"error": str(e)}
+    
+    def _encode_image_to_base64(self, image_path: str) -> str:
+        """
+        Encode image file to base64 string
+        
+        Args:
+            image_path: Path to the image file
+            
+        Returns:
+            Base64 encoded string
+        """
+        try:
+            with open(image_path, "rb") as image_file:
+                return base64.b64encode(image_file.read()).decode('utf-8')
+        except Exception as e:
+            logger.error(f"Error encoding image to base64: {str(e)}")
+            raise
+    
+    def _get_mime_type(self, image_path: str) -> str:
+        """
+        Get MIME type based on file extension
+        
+        Args:
+            image_path: Path to the image file
+            
+        Returns:
+            MIME type string
+        """
+        ext = os.path.splitext(image_path)[1].lower()
+        mime_types = {
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.png': 'image/png',
+            '.gif': 'image/gif',
+            '.webp': 'image/webp',
+            '.bmp': 'image/bmp'
+        }
+        return mime_types.get(ext, 'image/jpeg')
+    
+    def _build_image_analysis_prompt(self, text: str, entities: Dict[str, Any]) -> str:
+        """
+        Build a comprehensive prompt for image-based scam analysis
+        
+        Args:
+            text: Extracted text from OCR (if available)
+            entities: Extracted entities
+            
+        Returns:
+            Formatted prompt string
+        """
+        phones = entities.get('phones', [])
+        urls = entities.get('urls', [])
+        
+        prompt = f"""
+        Bạn là một AI phân tích lừa đảo chuyên nghiệp, hãy thật cân nhắc về các hình thức lừa đảo trên không gian mạng, đặc biệt ở Việt Nam.
+        
+        Hãy phân tích hình ảnh này một cách toàn diện để nhận diện các dấu hiệu lừa đảo, bao gồm:
+        1. Nội dung văn bản trong hình ảnh
+        2. Các yếu tố hình ảnh đáng ngờ (logo giả, thiết kế lừa đảo, v.v.)
+        3. Các thông tin liên hệ và đường link
+        4. Các dấu hiệu về thương hiệu, ngân hàng, hoặc tổ chức giả mạo
+        
+        NỘI DUNG VĂN BẢN ĐÃ TRÍCH XUẤT (nếu có):
+        {text if text else 'Không có văn bản được trích xuất'}
+        
+        CÁC THỰC THỂ ĐÃ ĐƯỢC TRÍCH XUẤT:
+        Các số điện thoại: {phones if phones else 'None found'}
+        Đường dẫn URLs: {urls if urls else 'None found'}
+        
+        Hãy cung cấp một phân tích chi tiết bao gồm:
+        1. Mức độ nguy hiểm (Low/Medium/High)
+        2. Các dấu hiệu nhận biết lừa đảo từ hình ảnh
+        3. Các mối lo ngại về nội dung và thiết kế
+        4. Đề xuất cho người dùng để bảo vệ
+        5. Mức độ tin cậy của phân tích
+        
+        Hãy format câu trả lời của bạn dưới dạng json gồm những nội dung sau VÀ Ở TRONG NGÔN NGỮ TIẾNG VIỆT:
+        RISK_LEVEL: [Low/Medium/High]
+        CONFIDENCE: [0-100]
+        ANALYSIS: [Phân tích chi tiết về hình ảnh và nội dung]
+        RECOMMENDATIONS: [Các hành động phải làm]
+        """
+        return prompt
+    
+    def _call_gemini_api_multimodal(self, content: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Make multimodal API call to Gemini with image and text
+        
+        Args:
+            content: The multimodal content to send to Gemini
+            
+        Returns:
+            Dictionary containing response data
+        """
+        try:
+            response = requests.post(
+                self.base_url,
+                params={"key": self.api_key},
+                json=content,
+                timeout=60  # Increased timeout for image processing
+            )
+            
+            return {
+                "status_code": response.status_code,
+                "data": response.json() if response.status_code == 200 else None,
+                "error": response.text if response.status_code != 200 else None
+            }
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request error: {str(e)}")
+            return {
+                "status_code": 500,
+                "error": f"Request failed: {str(e)}"
+            }
     
     def _build_scam_analysis_prompt(self, text: str, entities: Dict[str, Any]) -> str:
         """

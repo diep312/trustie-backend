@@ -138,22 +138,18 @@ class ScamDetectionService:
         
         # Check for common scam patterns
         if phone_number.startswith("+1") and len(phone_number) == 12:
-            # US number
-            if any(pattern in phone_number for pattern in ["800", "888", "877", "866"]):
-                risk_factors.append("Toll-free number")
+            # VN Number
+            if any(pattern in phone_number for pattern in ["024", "028", "1900"]):
+                risk_factors.append("Các đầu số điện thoại lừa đảo")
                 risk_score += 20
         
-        # Check for repeated digits (common in scam numbers)
-        if len(set(phone_number.replace("+", ""))) <= 3:
-            risk_factors.append("Repeated digits")
-            risk_score += 30
-        
+
         # Check for international numbers (higher risk)
-        if phone_number.startswith("+") and not phone_number.startswith("+1"):
-            risk_factors.append("International number")
+        if phone_number.startswith("+") and not phone_number.startswith("+8"):
+            risk_factors.append("Đầu số nước ngoài")
             risk_score += 25
         
-        # Context-based analysis
+        # Phân tích dựa trên ngữ cảnh nội dung
         if context:
             scam_keywords = ["urgent", "account", "suspended", "verify", "social security", "irs", "tax"]
             if any(keyword in context.lower() for keyword in scam_keywords):

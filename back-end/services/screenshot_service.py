@@ -82,9 +82,23 @@ class ScreenshotService:
         """
         return ai_services.analyze_scam_risk(text, entities)
 
+    def analyze_image_with_llm(self, image_path: str, text: str = "", entities: Dict[str, Any] = None) -> Dict[str, Any]:
+        """
+        Analyze image for scam risk using the AI services layer with multimodal capabilities
+        
+        Args:
+            image_path: Path to the image file
+            text: Optional text extracted from OCR
+            entities: Dictionary containing extracted entities
+            
+        Returns:
+            Dictionary containing analysis results
+        """
+        return ai_services.analyze_image_scam_risk(image_path, text, entities)
+
     def process_screenshot(self, file, user_id: int, description: Optional[str] = None) -> Dict[str, Any]:
         """
-        Process screenshot using the complete AI services pipeline
+        Process screenshot using the complete AI services pipeline with image analysis
         
         Args:
             file: Uploaded file
@@ -96,7 +110,7 @@ class ScreenshotService:
         """
         screenshot = self.save_screenshot(file, user_id, description)
         
-        # Use the complete AI services pipeline
+        # Use the complete AI services pipeline with image analysis
         analysis_result = ai_services.process_screenshot_analysis(screenshot.image_path)
         
         # Update screenshot with OCR text
@@ -108,5 +122,6 @@ class ScreenshotService:
             "screenshot_id": screenshot.id,
             "ocr_text": analysis_result["ocr_text"],
             "entities": analysis_result["entities"],
-            "llm_analysis": analysis_result["llm_analysis"]
+            "llm_analysis": analysis_result["llm_analysis"],
+            "image_analyzed": analysis_result["llm_analysis"].get("image_analyzed", False)
         }
