@@ -23,18 +23,18 @@ class AIServices:
         """
         return self.ocr_service.extract_text(image_path, lang)
     
-    def analyze_scam_risk(self, text: str, entities: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Analyze text for scam risk using LLM
+    # def analyze_scam_risk(self, text: str, entities: Dict[str, Any]) -> Dict[str, Any]:
+    #     """
+    #     Analyze text for scam risk using LLM
         
-        Args:
-            text: Text to analyze
-            entities: Dictionary containing extracted entities (phones, urls, etc.)
+    #     Args:
+    #         text: Text to analyze
+    #         entities: Dictionary containing extracted entities (phones, urls, etc.)
             
-        Returns:
-            Dictionary containing analysis results
-        """
-        return self.llm_service.analyze_scam_risk(text, entities)
+    #     Returns:
+    #         Dictionary containing analysis results
+    #     """
+    #     return self.llm_service.analyze_scam_risk(text, entities)
     
     def analyze_image_scam_risk(self, image_path: str, text: str = "", entities: Dict[str, Any] = None) -> Dict[str, Any]:
         """

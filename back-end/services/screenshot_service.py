@@ -69,18 +69,18 @@ class ScreenshotService:
         # Use the AI services layer for entity extraction
         return ai_services._extract_entities(text)
 
-    def analyze_with_llm(self, text: str, entities: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Analyze text for scam risk using the AI services layer
+    # def analyze_with_llm(self, text: str, entities: Dict[str, Any]) -> Dict[str, Any]:
+    #     """
+    #     Analyze text for scam risk using the AI services layer
         
-        Args:
-            text: Text to analyze
-            entities: Dictionary containing extracted entities
+    #     Args:
+    #         text: Text to analyze
+    #         entities: Dictionary containing extracted entities
             
-        Returns:
-            Dictionary containing analysis results
-        """
-        return ai_services.analyze_scam_risk(text, entities)
+    #     Returns:
+    #         Dictionary containing analysis results
+    #     """
+    #     return ai_services.analyze_scam_risk(text, entities)
 
     def analyze_image_with_llm(self, image_path: str, text: str = "", entities: Dict[str, Any] = None) -> Dict[str, Any]:
         """
