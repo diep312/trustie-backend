@@ -90,7 +90,7 @@ class OpenAIService(LLMServiceBase):
         Returns:
             Analysis results
         """
-        prompts = self._build_scam_analysis_prompt(text)
+        prompt = self._build_scam_analysis_prompt(text)
         
         
         try:
@@ -113,7 +113,6 @@ class OpenAIService(LLMServiceBase):
                 "risk_level": json_response["RISK_LEVEL"],
                 "confidence": int(json_response["CONFIDENCE"]),
                 "model_used": self.base_model,
-                "image_analyzed": True
             }
         except Exception as e:
             logger.error(f"Error in text analysis: {str(e)}")

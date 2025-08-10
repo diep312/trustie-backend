@@ -6,6 +6,7 @@ from .alert_service import AlertService
 from ..models.scan_result import ScamDetectionResult
 from ..models.scan import ScanRequest
 from ..schemas import SourceTypeEnum, ResultLabelEnum
+from ..ai_services.services import ai_services
 import logging
 
 logger = logging.getLogger(__name__)
@@ -249,3 +250,10 @@ class ScamDetectionService:
         except Exception as e:
             logger.error(f"Error getting detection history: {str(e)}")
             raise 
+    
+    def get_audio_script_assessment(self, transcript: str) -> Dict[str, Any]:
+        if not transcript.strip():
+            raise HTTPException(status_code=400, detail="Không có transcript")
+        
+        
+        return ai_services.analyze_text_content(transcript)

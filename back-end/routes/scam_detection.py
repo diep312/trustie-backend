@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Form
 from sqlalchemy.orm import Session
 from typing import Dict, Any, Optional
 from ..database import get_db
@@ -198,6 +198,24 @@ async def get_risk_assessment(
             "recommendation": scam_detection_service._get_recommendation(ai_analysis, phone_check)
         }
         
+    except Exception as e:
+        logger.error(f"Error in risk assessment: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error") 
+
+
+@router.post("/audio-script-assessment/")
+async def get_audio_script_assessment(
+    transcript: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    """
+    Get detailed assessment on scam call 
+    """
+    try:
+        scam_detection_service = ScamDetectionService(db)
+        result = scam_detection_service.get_audio_script_assessment(transcript)
+        return result
+
     except Exception as e:
         logger.error(f"Error in risk assessment: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error") 
