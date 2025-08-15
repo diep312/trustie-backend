@@ -94,23 +94,40 @@ class AlertService:
             logger.error(f"Error creating suspicious activity alert: {str(e)}")
             raise
     
-    def get_user_alerts(self, user_id: int, limit: int = 50, offset: int = 0, 
-                       unread_only: bool = False) -> List[Alert]:
+    def get_user_alerts(self, user_id: int, limit: int = 50, offset: int = 0,
+                    unread_only: bool = False) -> List[Alert]:
         """
-        Get alerts for a specific user
+        Get alerts for a specific user:
+        - Direct alerts (Alert.user_id matches the user)
+        - Alerts linked via FamilyMember relationship
         """
         try:
-            query = self.db.query(Alert).filter(Alert.user_id == user_id)
-            
+            # Subquery to find FamilyMember IDs where this user is the linked account
+            linked_family_ids_subq = self.db.query(FamilyMember.id).filter(
+                FamilyMember.linked_user_id == user_id
+            )
+
+            query = self.db.query(Alert).filter(
+                or_(
+                    Alert.user_id == user_id,  # Direct alerts for this user
+                    Alert.family_member_id.in_(linked_family_ids_subq)  # Alerts sent because of link
+                )
+            )
+
             if unread_only:
                 query = query.filter(Alert.is_read == False)
-            
-            return query.order_by(Alert.created_at.desc()).offset(offset).limit(limit).all()
-            
+
+            return (query
+                    .order_by(Alert.created_at.desc())
+                    .offset(offset)
+                    .limit(limit)
+                    .all()
+                    )
+
         except Exception as e:
             logger.error(f"Error getting user alerts: {str(e)}")
             raise
-    
+        
     def mark_alert_as_read(self, alert_id: int, user_id: int) -> Alert:
         """
         Mark an alert as read

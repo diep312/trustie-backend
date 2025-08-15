@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..database import get_db
-from ..services.family_service import link_family_member, check_if_linked, unlink_family
+from ..services.family_service import link_family_member, check_if_linked, unlink_family, get_linked_family_members
 from pydantic import BaseModel
 from typing import Optional
 
@@ -39,3 +39,8 @@ def check_link_status(elderly_user_id: int, family_user_id: int, db: Session = D
 @router.delete("/unlink-family/{elderly_user_id}/{family_user_id}")
 def unlink_family_member(elderly_user_id: int, family_user_id: int, db: Session = Depends(get_db)):
     return unlink_family(elderly_user_id, family_user_id, db)
+
+
+@router.get("/linked-members/{elderly_user_id}")
+def get_linked_members(elderly_user_id: int, db: Session = Depends(get_db)):
+    return get_linked_family_members(elderly_user_id, db)

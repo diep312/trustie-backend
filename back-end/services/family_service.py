@@ -75,3 +75,35 @@ def unlink_family(elderly_user_id: int, family_user_id: int, db: Session):
     db.delete(link)
     db.commit()
     return {"message": "Family member unlinked successfully"}
+
+def get_linked_family_members(elderly_user_id: int, db: Session):
+    elderly_user = db.query(User).filter(User.id == elderly_user_id, User.is_elderly == True).first()
+    if not elderly_user:
+        raise HTTPException(status_code=404, detail="Elderly user not found")
+
+    members = (
+        db.query(FamilyMember)
+        .filter(FamilyMember.user_id == elderly_user_id)
+        .all()
+    )
+
+    # Build the response list
+    family_list = []
+    for member in members:
+        family_list.append({
+            "user_id": member.linked_user_id,     # The linked user's account id
+            "name": member.name,
+            "phoneNumber": member.phone_number,
+            "relationship": member.relation_type  # Your model column is relation_type
+        })
+
+    return family_list
+
+
+def get_linked_family_members_for_alert(elderly_user_id: int, db: Session):
+    """
+    Returns all linked family members for an elderly.
+    """
+    return db.query(FamilyMember).filter(
+        FamilyMember.user_id == elderly_user_id
+    ).all()

@@ -17,23 +17,20 @@ class PhoneService:
     
     def check_phone_number(self, phone_number: str, user_id: Optional[int] = None) -> Dict[str, Any]:
         """
-        Check if a phone number is flagged in the database
-        Returns detailed information about the phone number
+        Check if a phone number is flagged in the database.
+        If not found, add to DB and run simple potential scam check (demo).
         """
         try:
-            # Clean the phone number (remove spaces, dashes, etc.)
             cleaned_number = self._clean_phone_number(phone_number)
-            
-            # Search for the phone number in the database
+
             phone_record = self.db.query(PhoneNumber).filter(
                 PhoneNumber.number == cleaned_number
             ).first()
-            
+
             if phone_record:
-                # Update last_checked timestamp
+                # Update last_checked
                 phone_record.last_checked = datetime.utcnow()
                 self.db.commit()
-                
                 return {
                     "found": True,
                     "is_flagged": phone_record.is_flagged,
@@ -44,15 +41,50 @@ class PhoneService:
                     "last_checked": phone_record.last_checked,
                     "created_at": phone_record.created_at
                 }
-            else:
-                return {
-                    "found": False,
-                    "is_flagged": False,
-                    "risk_score": 0,
-                    "message": "Số điện thoại không được tìm thấy trong cơ sở dữ liệu."
-                }
-                
+
+            # --------------------------
+            # Not found: Create new record
+            # --------------------------
+            risk_score = 20
+            flag_reason = ""
+            is_flagged = False
+
+          
+            if not cleaned_number.startswith("+84"):
+                is_flagged = True
+                flag_reason = "Số điện thoại nước ngoài"
+                risk_score = 60
+
+            if re.match(r"^(\+8490|\+8486)", cleaned_number):
+                risk_score = max(risk_score, 70)
+                is_flagged = True
+                flag_reason = "Số có dấu hiệu lừa đảo trong số máy"
+
+            # Create phone record
+            phone_record = PhoneNumber(
+                number=cleaned_number,
+                info=f"Lần đầu gọi cho {user_id}" if user_id else "First seen (system check)",
+                origin="auto_check",
+                is_flagged=is_flagged,
+                flag_reason=flag_reason,
+                risk_score=risk_score,
+                created_at=datetime.utcnow(),
+                last_checked=datetime.utcnow()
+            )
+            self.db.add(phone_record)
+            self.db.commit()
+            self.db.refresh(phone_record)
+
+            return {
+                "found": False,
+                "is_flagged": phone_record.is_flagged,
+                "flag_reason": phone_record.flag_reason,
+                "risk_score": phone_record.risk_score,
+                "message": "Số điện thoại chưa có trong cơ sở dữ liệu, đã được thêm mới để theo dõi."
+            }
+
         except Exception as e:
+            self.db.rollback()
             logger.error(f"Error checking phone number {phone_number}: {str(e)}")
             raise
     
@@ -204,9 +236,26 @@ class PhoneService:
     
     def _clean_phone_number(self, phone_number: str) -> str:
         """
-        Clean phone number by removing spaces, dashes, and other non-digit characters
+        Clean and normalize a Vietnamese phone number to international format (+84...).
+        - Accepts numbers in format: +84..., or 0(9|3|7|8|5|2)...
+        - Removes spaces, dashes, dots, and other non-digit characters (except + at start)
         """
         import re
-        # Remove all non-digit characters except +
+        
+        # Remove all non-digit characters except leading +
         cleaned = re.sub(r'[^\d+]', '', phone_number)
-        return cleaned 
+        
+        # If already starts with +84 → keep it
+        if cleaned.startswith("+84"):
+            return cleaned
+        
+        # If starts with 0 → convert to +84
+        if cleaned.startswith("0"):
+            return f"+84{cleaned[1:]}"
+        
+        # If starts with '84' but missing '+' at front
+        if cleaned.startswith("84"):
+            return f"+{cleaned}"
+        
+        # Final fallback: return as-is if we don't know the format
+        return cleaned

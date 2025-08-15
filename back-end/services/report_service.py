@@ -19,29 +19,30 @@ class ReportService:
     def report_phone(self, phone_number: str, reason: str, user_id: int, priority: str = "medium") -> Report:
         """
         Report a phone number. If the phone doesn't exist, create it first.
+        Demo Mode: If > 10 reports in last 3 days for the same phone → mark as potential scam.
         """
         try:
-            # Clean the phone number
+            # Clean phone number
             cleaned_number = self._clean_phone_number(phone_number)
-            
-            # Check if phone number exists
+
+            # Check if phone exists
             phone_record = self.db.query(PhoneNumber).filter(
                 PhoneNumber.number == cleaned_number
             ).first()
-            
+
             # If phone doesn't exist, create it
             if not phone_record:
                 phone_record = PhoneNumber(
                     number=cleaned_number,
                     info=f"Được báo cáo bởi người dùng {user_id}",
                     origin="user_report",
-                    is_flagged=false,
+                    is_flagged=False,
                     flag_reason="",
                     risk_score=50
                 )
                 self.db.add(phone_record)
-                self.db.flush()  # Get the ID without committing
-            
+                self.db.flush()  # Assign ID without commit yet
+
             # Create the report
             report = Report(
                 reason=reason,
@@ -51,14 +52,32 @@ class ReportService:
                 user_id=user_id,
                 reported_phone_id=phone_record.id
             )
-            
             self.db.add(report)
             self.db.commit()
             self.db.refresh(report)
-            
-            logger.info(f"Phone report created: {report.id} for phone {cleaned_number}")
+
+            logger.info(f"Phone report created: {report.id} for {cleaned_number}")
+
+            # -------------------------------
+            # Demo logic: Check last 3-day report count
+            # -------------------------------
+            three_days_ago = datetime.utcnow() - timedelta(days=3)
+
+            report_count = self.db.query(func.count(Report.id)) \
+                .filter(
+                    Report.reported_phone_id == phone_record.id,
+                    Report.created_at >= three_days_ago
+                ).scalar()
+
+            if report_count > 10:
+                phone_record.is_flagged = True
+                phone_record.flag_reason = "Nhận được nhiều báo cáo từ người dùng"
+                phone_record.risk_score = max(phone_record.risk_score, 80)  # bump risk score
+                self.db.commit()
+                logger.info(f"Marked phone {cleaned_number} as potential scam (reports in last 3 days: {report_count})")
+
             return report
-            
+
         except Exception as e:
             self.db.rollback()
             logger.error(f"Error creating phone report: {str(e)}")
@@ -130,7 +149,7 @@ class ReportService:
             if not phone_record:
                 phone_record = PhoneNumber(
                     number=cleaned_number,
-                    info=f"Được báo cáo hành vi bất thường bởi người dùngdùng {user_id}",
+                    info=f"Được báo cáo hành vi bất thường bởi người dùng {user_id}",
                     origin="sms_report",
                     is_flagged=False,
                     flag_reason="Đã được báo cáo hành vi bất thường",
@@ -250,11 +269,28 @@ class ReportService:
     
     def _clean_phone_number(self, phone_number: str) -> str:
         """
-        Clean phone number by removing spaces, dashes, and other non-digit characters
+        Clean and normalize a Vietnamese phone number to international format (+84...).
+        - Accepts numbers in format: +84..., or 0(9|3|7|8|5|2)...
+        - Removes spaces, dashes, dots, and other non-digit characters (except + at start)
         """
         import re
-        # Remove all non-digit characters except +
+        
+        # Remove all non-digit characters except leading +
         cleaned = re.sub(r'[^\d+]', '', phone_number)
+        
+        # If already starts with +84 → keep it
+        if cleaned.startswith("+84"):
+            return cleaned
+        
+        # If starts with 0 → convert to +84
+        if cleaned.startswith("0"):
+            return f"+84{cleaned[1:]}"
+        
+        # If starts with '84' but missing '+' at front
+        if cleaned.startswith("84"):
+            return f"+{cleaned}"
+        
+        # Final fallback: return as-is if we don't know the format
         return cleaned
     
     def _clean_domain(self, domain: str) -> str:
