@@ -6,7 +6,14 @@ import os
 from typing import Any
 from .routes import phone, alerts, screenshot, user, family, reports, tts, scam_detection
 
-app = FastAPI(title="Backend API của Trustie", version="1.0.1")
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
+
+app = FastAPI(title="Backend API của Trustie", version="1.2.0")
 
 # Include routers
 app.include_router(phone.router)

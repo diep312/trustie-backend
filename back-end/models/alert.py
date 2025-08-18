@@ -9,9 +9,9 @@ class Alert(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     family_member_id = Column(Integer, ForeignKey("family_members.id"), nullable=True)
-    detection_result_id = Column(Integer, ForeignKey("scam_detection_results.id"), nullable=False)
+    detection_result_id = Column(Integer, ForeignKey("scam_detection_results.id"), nullable=True)
     
-    alert_type = Column(SQLEnum("scam_detected", "suspicious_activity", "high_risk", "urgent", name="alert_type_enum"), nullable=False)
+    alert_type = Column(SQLEnum("scam_detected", "suspicious_activity", "high_risk", "urgent", "family_member_alert", "daily_reminder", "phone_risk", "family_only_alert", name="alert_type_enum"), nullable=False)
     severity = Column(SQLEnum("low", "medium", "high", "critical", name="severity_enum"), default="medium")
     message = Column(Text, nullable=False)
     is_read = Column(Boolean, default=False, index=True)

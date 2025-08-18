@@ -19,8 +19,8 @@ async def text_to_speech(text: str = Form(...)):
         if not text.strip():
             raise HTTPException(status_code=400, detail="Không được để trống văn bản")
         
-        if len(text) > 1000:
-            raise HTTPException(status_code=400, detail="Văn bản quá dài (quá 1000 từ)")
+        if len(text) > 20000:
+            raise HTTPException(status_code=400, detail="Văn bản quá dài (quá 220000 từ)")
         
         # Generate TTS
         result = ai_services.text_to_speech(text=text)

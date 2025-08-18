@@ -84,6 +84,18 @@ class AIServices:
         """
         return self.llm_service.analyze_text_content(text, analysis_type)
     
+    def analyze_audio_scam_risk(self, audio_path: str) -> Dict[str, Any]:
+        """
+        Analyze audio file for scam risk using LLM with audio transcription
+        
+        Args:
+            audio_path: Path to the audio file (WAV format)
+            
+        Returns:
+            Dictionary containing transcription and analysis results
+        """
+        return self.llm_service.analyze_audio_scam_risk(audio_path)
+    
     def process_screenshot_analysis(self, image_path: str, lang: str = 'vie') -> Dict[str, Any]:
         """
         Complete screenshot processing pipeline with image analysis

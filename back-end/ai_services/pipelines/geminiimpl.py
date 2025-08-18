@@ -288,3 +288,27 @@ class GeminiService(LLMServiceBase):
             return {"analysis": analysis, "type": analysis_type}
         else:
             return {"error": response.get('error', 'Analysis failed')}
+    
+    def analyze_audio_scam_risk(self, audio_path: str) -> Dict[str, Any]:
+        """
+        Analyze audio file for scam risk using Gemini's audio capabilities
+        Note: This is a placeholder implementation as Gemini may not support audio directly
+        For now, we'll return an error suggesting to use OpenAI for audio analysis
+        
+        Args:
+            audio_path: Path to the audio file (WAV format)
+            
+        Returns:
+            Dictionary containing analysis results
+        """
+        try:
+            # For now, return an error since Gemini may not support audio directly
+            # In the future, this could be implemented with Gemini's audio capabilities
+            return {
+                "error": "Audio analysis not yet supported with Gemini. Please use OpenAI provider for audio analysis.",
+                "suggestion": "Switch to OpenAI provider or use transcript-based analysis instead."
+            }
+                
+        except Exception as e:
+            logger.error(f"Error in audio scam risk analysis: {str(e)}")
+            return {"error": str(e)}

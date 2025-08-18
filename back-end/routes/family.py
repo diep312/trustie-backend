@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..database import get_db
-from ..services.family_service import link_family_member, check_if_linked, unlink_family, get_linked_family_members
+from ..services.family_service import link_family_member, check_if_linked, unlink_family, get_linked_family_members, get_elderly_user_info
 from pydantic import BaseModel
 from typing import Optional
 
@@ -12,10 +12,6 @@ router = APIRouter(prefix="/family", tags=["family"])
 class LinkRequest(BaseModel):
     scanned_payload: str
     family_user_id: int
-    name: str
-    relationship: Optional[str] = None
-    phone_number: Optional[str] = None
-    email: Optional[str] = None
 
 
 @router.post("/link-family")
@@ -23,10 +19,6 @@ def link_family(data: LinkRequest, db: Session = Depends(get_db)):
     return link_family_member(
         scanned_payload=data.scanned_payload,
         family_user_id=data.family_user_id,
-        name=data.name,
-        relationship=data.relationship,
-        phone_number=data.phone_number,
-        email=data.email,
         db=db
     )
 
@@ -44,3 +36,12 @@ def unlink_family_member(elderly_user_id: int, family_user_id: int, db: Session 
 @router.get("/linked-members/{elderly_user_id}")
 def get_linked_members(elderly_user_id: int, db: Session = Depends(get_db)):
     return get_linked_family_members(elderly_user_id, db)
+
+
+@router.get("/elderly-info/{elderly_user_id}")
+def get_elderly_info(elderly_user_id: int, db: Session = Depends(get_db)):
+    """
+    Get elderly user information for display purposes.
+    This can be used to show elder's details before linking.
+    """
+    return get_elderly_user_info(elderly_user_id, db)

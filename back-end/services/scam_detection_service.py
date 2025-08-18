@@ -255,5 +255,28 @@ class ScamDetectionService:
         if not transcript.strip():
             raise HTTPException(status_code=400, detail="Không có transcript")
         
-        
         return ai_services.analyze_text_content(transcript)
+    
+    def analyze_audio_file(self, audio_path: str) -> Dict[str, Any]:
+        """
+        Analyze audio file for scam detection
+        This method uses AI to transcribe audio and analyze for scam indicators
+        
+        Args:
+            audio_path: Path to the audio file
+            
+        Returns:
+            Dictionary containing transcription and analysis results
+        """
+        try:
+            # Use AI service to analyze audio
+            result = ai_services.analyze_audio_scam_risk(audio_path)
+            
+            if "error" in result:
+                raise Exception(f"Audio analysis failed: {result['error']}")
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error in audio analysis: {str(e)}")
+            raise

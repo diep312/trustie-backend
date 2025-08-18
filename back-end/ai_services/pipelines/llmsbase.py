@@ -82,6 +82,10 @@ class LLMServiceBase(ABC):
         pass
 
     @abstractmethod
+    def analyze_audio_scam_risk(self, audio_path: str) -> Dict[str, Any]:
+        pass
+
+    @abstractmethod
     def _build_image_analysis_prompt(self, text: str, entities: Dict[str, Any]) -> str:
         pass
 

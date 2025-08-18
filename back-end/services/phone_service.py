@@ -7,7 +7,9 @@ from ..models.user import User
 from ..models.alert import Alert
 from ..models.family import FamilyMember
 from ..schemas import PhoneNumberCreate, PhoneNumber as PhoneNumberSchema
+from ..services.alert_service import AlertService
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +21,7 @@ class PhoneService:
         """
         Check if a phone number is flagged in the database.
         If not found, add to DB and run simple potential scam check (demo).
+        If high risk and user_id provided, create alerts for user and family members.
         """
         try:
             cleaned_number = self._clean_phone_number(phone_number)
@@ -31,6 +34,15 @@ class PhoneService:
                 # Update last_checked
                 phone_record.last_checked = datetime.utcnow()
                 self.db.commit()
+                
+                # Check if we should create alerts based on risk score
+                if user_id: 
+                    if phone_record.is_flagged:
+                        self._create_alerts_for_high_risk_phone(user_id, phone_record)
+                
+                    if phone_record.risk_score >= 60 and phone_record <= 80:
+                        self._create_family_only_alerts(user_id, phone_record)
+                
                 return {
                     "found": True,
                     "is_flagged": phone_record.is_flagged,
@@ -75,6 +87,15 @@ class PhoneService:
             self.db.commit()
             self.db.refresh(phone_record)
 
+            logger.info(f"DEBUG: user_id={user_id}, is_flagged={phone_record.is_flagged}, risk={phone_record.risk_score}")
+            
+            if user_id: 
+                if phone_record.is_flagged:
+                    self._create_alerts_for_high_risk_phone(user_id, phone_record)
+            
+                if phone_record.risk_score >= 60 and phone_record <= 80:
+                    self._create_family_only_alerts(user_id, phone_record)
+
             return {
                 "found": False,
                 "is_flagged": phone_record.is_flagged,
@@ -87,6 +108,125 @@ class PhoneService:
             self.db.rollback()
             logger.error(f"Error checking phone number {phone_number}: {str(e)}")
             raise
+    
+    def _create_alerts_for_high_risk_phone(self, user_id: int, phone_record: PhoneNumber) -> None:
+        """
+        Create alerts for both the elderly user and their linked family members
+        when a high-risk phone number is detected
+        """
+        try:
+            alert_service = AlertService(self.db)
+            
+            # Create alert for the elderly user
+            user_alert = alert_service.create_phone_based_alert(
+                user_id=user_id,
+                phone_number=phone_record.number,
+                risk_score=phone_record.risk_score,
+                flag_reason=phone_record.flag_reason
+            )
+            
+            logger.info(f"Created alert {user_alert.id} for user {user_id} about high-risk phone {phone_record.number}")
+            
+            # Create alerts for linked family members
+            self._create_family_member_alerts(user_id, phone_record, alert_service)
+            
+        except Exception as e:
+            logger.error(f"Error creating alerts for high-risk phone {phone_record.number}: {str(e)}")
+            # Don't raise here to avoid breaking the main phone check flow
+    
+    def _create_family_only_alerts(self, elderly_user_id: int, phone_record: PhoneNumber) -> None:
+        """
+        Create alerts ONLY for family members when a phone number with risk score 60-80
+        is detected for elderly users. This provides family notification without alarming the elderly user.
+        """
+        try:
+            alert_service = AlertService(self.db)
+            
+            # Create alerts for linked family members only
+            self._create_family_member_alerts_family_only(elderly_user_id, phone_record, alert_service)
+            
+            logger.info(f"Created family-only alerts for phone {phone_record.number} with risk score {phone_record.risk_score}")
+            
+        except Exception as e:
+            logger.error(f"Error creating family-only alerts for phone {phone_record.number}: {str(e)}")
+            # Don't raise here to avoid breaking the main phone check flow
+    
+    def _create_family_member_alerts_family_only(self, elderly_user_id: int, phone_record: PhoneNumber, alert_service: AlertService) -> None:
+        """
+        Create family-only alerts for family members linked to the elderly user
+        These alerts are not shown to the elderly user to avoid unnecessary alarm
+        """
+        try:
+            # Get family members who should be notified
+            family_members = self.db.query(FamilyMember).filter(
+                and_(
+                    FamilyMember.user_id == elderly_user_id,
+                    FamilyMember.notify_on_alert == True,
+                    FamilyMember.linked_user_id.isnot(None)
+                )
+            ).all()
+            
+            for family_member in family_members:
+                try:
+                    # Create family-only alert for family member
+                    family_alert = alert_service.create_family_only_alert(
+                        elderly_user_id=elderly_user_id,
+                        family_member_id=family_member.linked_user_id,
+                        phone_number=phone_record.number,
+                        risk_score=phone_record.risk_score,
+                        flag_reason=phone_record.flag_reason
+                    )
+                    
+                    logger.info(f"Created family-only alert {family_alert.id} for user {family_member.linked_user_id}")
+                    
+                except Exception as e:
+                    logger.error(f"Error creating family-only alert for family member {family_member.linked_user_id}: {str(e)}")
+                    # Continue with other family members
+                    continue
+            
+            logger.info(f"Created family-only alerts for {len(family_members)} family members about phone {phone_record.number}")
+            
+        except Exception as e:
+            logger.error(f"Error creating family-only alerts: {str(e)}")
+            # Don't raise here to avoid breaking the main flow
+    
+    def _create_family_member_alerts(self, elderly_user_id: int, phone_record: PhoneNumber, alert_service: AlertService) -> None:
+        """
+        Create alerts for family members linked to the elderly user
+        """
+        try:
+            # Get family members who should be notified
+            family_members = self.db.query(FamilyMember).filter(
+                and_(
+                    FamilyMember.user_id == elderly_user_id,
+                    FamilyMember.notify_on_alert == True,
+                    FamilyMember.linked_user_id.isnot(None)
+                )
+            ).all()
+            
+            for family_member in family_members:
+                try:
+                    # Create alert for family member
+                    family_alert = alert_service.create_family_member_alert(
+                        elderly_user_id=elderly_user_id,
+                        family_member_id=family_member.linked_user_id,
+                        phone_number=phone_record.number,
+                        risk_score=phone_record.risk_score,
+                        flag_reason=phone_record.flag_reason
+                    )
+                    
+                    logger.info(f"Created family member alert {family_alert.id} for user {family_member.linked_user_id}")
+                    
+                except Exception as e:
+                    logger.error(f"Error creating alert for family member {family_member.linked_user_id}: {str(e)}")
+                    # Continue with other family members
+                    continue
+            
+            logger.info(f"Created alerts for {len(family_members)} family members about high-risk phone {phone_record.number}")
+            
+        except Exception as e:
+            logger.error(f"Error creating family member alerts: {str(e)}")
+            # Don't raise here to avoid breaking the main flow
     
     def add_phone_number(self, phone_data: PhoneNumberCreate) -> PhoneNumber:
         """

@@ -17,6 +17,7 @@ router = APIRouter(prefix="/phone", tags=["phone"])
 class PhoneCheckRequest(BaseModel):
     phone_number: str
     user_id: Optional[int] = None
+    create_alerts: bool = False  # New parameter to control alert creation
 
 class PhoneCheckResponse(BaseModel):
     found: bool
@@ -53,7 +54,7 @@ async def check_phone_number(
         phone_service = PhoneService(db)
         result = phone_service.check_phone_number(
             phone_number=request.phone_number,
-            user_id=request.user_id
+            user_id=request.user_id if request.create_alerts else None
         )
         
         return PhoneCheckResponse(**result)
@@ -216,9 +217,8 @@ async def check_phone_and_create_alert(
     """
     try:
         phone_service = PhoneService(db)
-        alert_service = AlertService(db)
         
-        # Check the phone number
+        # Check the phone number (this will automatically create alerts if high-risk)
         result = phone_service.check_phone_number(
             phone_number=request.phone_number,
             user_id=request.user_id

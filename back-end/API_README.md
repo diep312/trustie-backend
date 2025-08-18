@@ -15,15 +15,21 @@ http://localhost:8000
 ```http
 POST /phone/check
 ```
-Check if a phone number is flagged in the database.
+Check if a phone number is flagged in the database. Optionally create alerts for high-risk numbers.
 
 **Request Body:**
 ```json
 {
   "phone_number": "+18005551234",
-  "user_id": 1
+  "user_id": 1,
+  "create_alerts": true
 }
 ```
+
+**Parameters:**
+- `phone_number`: The phone number to check
+- `user_id`: (Optional) User ID for creating alerts
+- `create_alerts`: (Optional) Whether to automatically create alerts for high-risk numbers (default: false)
 
 **Response:**
 ```json
@@ -79,13 +85,36 @@ Search phone numbers by number, info, or origin.
 ```http
 POST /phone/check-and-alert
 ```
-Check phone number and create alert if flagged.
+Check phone number and automatically create alerts based on risk score. This endpoint will:
+- Check the phone number against the database
+- **Risk Score 80+**: Create alerts for both elderly user and family members
+- **Risk Score 60-79**: Create alerts only for family members (elderly user not alarmed)
+- **Risk Score < 60**: No alerts created
+- Return information about whether alerts were created
 
 **Request Body:**
 ```json
 {
   "phone_number": "+18005551234",
   "user_id": 1
+}
+```
+
+**Response:**
+```json
+{
+  "phone_check": {
+    "found": true,
+    "is_flagged": true,
+    "flag_reason": "Known scam number",
+    "risk_score": 85,
+    "info": "IRS scam caller",
+    "origin": "User report",
+    "last_checked": "2024-01-15T10:30:00Z",
+    "created_at": "2024-01-10T08:00:00Z"
+  },
+  "alert_created": true,
+  "message": "Alerts created automatically for high-risk phone numbers"
 }
 ```
 
@@ -184,6 +213,38 @@ Check multiple phone numbers at once.
 ]
 ```
 
+#### Audio Assessment
+```http
+POST /scam-detection/audio-assessment/
+```
+Analyze audio WAV file for scam detection using AI transcription and analysis.
+
+**Request:**
+- Content-Type: `multipart/form-data`
+- Body: `audio_file` (WAV file, max 25MB)
+
+**Response:**
+```json
+{
+  "transcript": "Transcribed audio content...",
+  "analysis": "Detailed analysis of potential scam indicators...",
+  "recommendation": "Specific actions user should take...",
+  "risk_level": "HIGH",
+  "confidence": 85,
+  "model_used": "gpt-4.1-mini",
+  "audio_analyzed": true,
+  "transcription_model": "whisper-1"
+}
+```
+
+**Features:**
+- Automatic audio transcription using OpenAI Whisper
+- AI-powered scam detection analysis
+- Vietnamese language optimization
+- Risk level assessment (Low/Medium/High)
+- Confidence scoring
+- Actionable recommendations
+
 ### Alert Management
 
 #### Get User Alerts
@@ -267,6 +328,85 @@ Mark all alerts for a user as read.
   "created_at": "2024-01-15T10:30:00Z"
 }
 ```
+
+**Alert Types:**
+- `scam_detected`: Alerts from AI scam detection
+- `suspicious_activity`: General suspicious activity alerts
+- `high_risk`: High-risk situation alerts
+- `urgent`: Urgent alerts requiring immediate attention
+- `family_member_alert`: Alerts for family members about elderly user
+- `daily_reminder`: Daily reminder alerts
+- `phone_risk`: Phone number risk alerts (created when checking flagged numbers)
+- `family_only_alert`: Family-only alerts for medium-high risk situations (elderly user not notified)
+
+**Note:** Alerts can now be created with or without AI detection results. Phone-based alerts (`phone_risk`) are created automatically when high-risk phone numbers are detected during database checks.
+
+## Family Management
+
+### Link Family Member
+```http
+POST /family/link-family
+```
+Link a family member to an elderly user. The scanned payload contains the elder's ID, and elder's information is automatically fetched from the User table.
+
+**Request Body:**
+```json
+{
+  "scanned_payload": "123",
+  "family_user_id": 456
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Kết nối với thành viên gia đình thành công!",
+  "elderly_user": {
+    "id": 123,
+    "name": "Elderly User Name",
+    "email": "elderly@example.com"
+  },
+  "family_user": {
+    "id": 456,
+    "name": "Family Member Name"
+  }
+}
+```
+
+### Get Elderly User Info
+```http
+GET /family/elderly-info/{elderly_user_id}
+```
+Get elderly user information for display purposes before linking.
+
+**Response:**
+```json
+{
+  "id": 123,
+  "name": "Elderly User Name",
+  "email": "elderly@example.com",
+  "is_elderly": true,
+  "is_active": true
+}
+```
+
+### Check Link Status
+```http
+GET /family/link-status/{elderly_user_id}/{family_user_id}
+```
+Check if two users are already linked as family members.
+
+### Unlink Family Member
+```http
+DELETE /family/unlink-family/{elderly_user_id}/{family_user_id}
+```
+Remove the family link between two users.
+
+### Get Linked Family Members
+```http
+GET /family/linked-members/{elderly_user_id}
+```
+Get all family members linked to an elderly user.
 
 ## Error Responses
 

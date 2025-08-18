@@ -1,10 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Form
+from fastapi import APIRouter, Depends, HTTPException, Query, Form, File, UploadFile
 from sqlalchemy.orm import Session
 from typing import Dict, Any, Optional
 from ..database import get_db
 from ..services.scam_detection_service import ScamDetectionService
+from ..ai_services.services import ai_services
 from pydantic import BaseModel
 import logging
+import os
+import tempfile
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +34,14 @@ class DetectionHistoryResponse(BaseModel):
     detection_results: int
     alerts: int
     recent_scans: list
+
+class AudioAssessmentResponse(BaseModel):
+    analysis: str
+    recommendation: str
+    risk_level: str
+    confidence: int
+    model_used: str
+
 
 @router.post("/detect", response_model=ScamDetectionResponse)
 async def detect_scam(
@@ -218,4 +230,57 @@ async def get_audio_script_assessment(
 
     except Exception as e:
         logger.error(f"Error in risk assessment: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error") 
+
+@router.post("/audio-assessment/", response_model=AudioAssessmentResponse)
+async def analyze_audio_file(
+    audio_file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    """
+    Analyze audio WAV file for scam detection
+    This endpoint:
+    1. Accepts a WAV audio file
+    2. Transcribes the audio using AI
+    3. Analyzes the transcript for scam indicators
+    4. Returns comprehensive risk assessment
+    """
+    try:
+        allowed_extensions = ('.wav', '.mp3', '.mp4')
+        if not audio_file.filename.lower().endswith(allowed_extensions):
+            raise HTTPException(
+                status_code=400,
+                detail="Only WAV, MP3, and MP4 audio files are supported"
+            )
+        
+        # Validate file size (max 25MB for audio files)
+        if audio_file.size and audio_file.size > 50 * 1024 * 1024:
+            raise HTTPException(
+                status_code=400,
+                detail="Audio file size must be less than 25MB"
+            )
+        
+        # Save uploaded file temporarily
+        filename_ext = os.path.splitext(audio_file.filename)[1]
+        with tempfile.NamedTemporaryFile(delete=False, suffix=filename_ext) as temp_file:
+            content = await audio_file.read()
+            temp_file.write(content)
+            temp_file_path = temp_file.name
+        
+        try:
+            # Use scam detection service for audio analysis
+            scam_detection_service = ScamDetectionService(db)
+            result = scam_detection_service.analyze_audio_file(temp_file_path)
+            
+            return AudioAssessmentResponse(**result)
+            
+        finally:
+            # Clean up temporary file
+            if os.path.exists(temp_file_path):
+                os.unlink(temp_file_path)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in audio analysis: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error") 

@@ -21,6 +21,10 @@ class AlertTypeEnum(str, Enum):
     SUSPICIOUS_ACTIVITY = "suspicious_activity"
     HIGH_RISK = "high_risk"
     URGENT = "urgent"
+    FAMILY_MEMBER_ALERT = "family_member_alert"
+    DAILY_REMINDER = "daily_reminder"
+    PHONE_RISK = "phone_risk"
+    FAMILY_ONLY_ALERT = "family_only_alert"
 
 class SeverityEnum(str, Enum):
     LOW = "low"
@@ -176,13 +180,13 @@ class AlertBase(BaseModel):
 class AlertCreate(AlertBase):
     user_id: int
     family_member_id: Optional[int] = None
-    detection_result_id: int
+    detection_result_id: Optional[int] = None
 
 class Alert(AlertBase):
     id: int
     user_id: int
     family_member_id: Optional[int] = None
-    detection_result_id: int
+    detection_result_id: Optional[int] = None
     is_read: bool
     is_acknowledged: bool
     acknowledged_at: Optional[datetime] = None

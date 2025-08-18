@@ -33,4 +33,10 @@ class LLMService:
         """
         return self.impl.analyze_text_content(text, analysis_type)
     
+    def analyze_audio_scam_risk(self, audio_path: str) -> Dict[str, Any]:
+        """
+        Analyze audio file for scam risk using the configured provider
+        """
+        return self.impl.analyze_audio_scam_risk(audio_path)
+    
     # Add other methods as needed, delegating to the implementation

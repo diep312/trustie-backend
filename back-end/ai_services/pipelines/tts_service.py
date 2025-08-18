@@ -88,7 +88,7 @@ class TTSService:
             
             syn_config = piper.SynthesisConfig(
                 volume=1.5,  
-                length_scale=1.8,  # twice as slow
+                length_scale=1.5,  # twice as slow
                 noise_scale=0.4,  # more audio variation
                 noise_w_scale=0.5,  # more speaking variation
                 normalize_audio=True, # use raw audio from voice
