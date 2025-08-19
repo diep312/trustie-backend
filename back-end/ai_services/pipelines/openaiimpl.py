@@ -246,6 +246,7 @@ class OpenAIService(LLMServiceBase):
         - Có thể có lỗi nhận diện âm tiết, lặp lại từ, hoặc thiếu hụt một số đoạn.
         - Bạn cần suy luận và khớp bối cảnh tổng thể từ các phần thông tin hữu ích.
         - Tập trung nhận biết từ khóa, cụm từ, nội dung liên quan đến các thủ đoạn lừa đảo phổ biến đặc biệt là ở Việt Nam (gọi yêu cầu cung cấp OTP, thông tin ngân hàng, hăm dọa, báo tin trúng thưởng, link giả mạo, v.v.).
+        - Nếu nên can thiệp và dừng cuộc gọi hãy cảnh cáo ở mức nguy cơ High - giúp đỡ người già không bị thao túng tâm lý
 
         Dữ liệu hội thoại cần phân tích: 
         {text}
